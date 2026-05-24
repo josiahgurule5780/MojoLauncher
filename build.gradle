@@ -53,7 +53,6 @@ android {
     namespace 'git.artdeell.mojo'
     compileSdk = 36
 
-    // MODERN FIX: Ignores missing/bad formatting errors in translation files
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~'
     }
@@ -305,9 +304,9 @@ afterEvaluate {
         
 		def cacioJarUrl = "https://jitpack.io/com/github/MojoLauncher/%1\$s/%2\$s/%3\$s/%2\$s-%3\$s%4\$s.jar"
 
+        // FIXED HERE: Added missing path parameters back to the methods
         registrar.onlineJarDependency cacioJarUrl, "caciocavallo", "cacio-shared", "-01d2dc1d65-1", "", "components/caciocavallo"
-        registrar.onlineJarDependency cacioJarUrl, "cacio-androidnw", "-01d2dc1d65-1", "", "components/caciocavallo"
-
+        registrar.onlineJarDependency cacioJarUrl, "caciocavallo", "cacio-androidnw", "-01d2dc1d65-1", "", "components/caciocavallo"
         registrar.onlineJarDependency cacioJarUrl, "caciocavallo17", "cacio-tta", "72a9ab6323", "-jar-with-dependencies", "components/caciocavallo17"
     }
 }
@@ -337,4 +336,3 @@ dependencies {
 
     implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
 }
-
