@@ -121,8 +121,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         CallbackBridge.addGrabListener(touchpad);
         CallbackBridge.addGrabListener(minecraftGLView);
 
-                CallbackBridge.addGrabListener(new org.lwjgl.glfw.GrabListener() {
-            @Override
+                        CallbackBridge.addGrabListener(new org.lwjgl.glfw.GrabListener() {
             public void onGrabStateChange(final boolean isGrabbing) {
                 runOnUiThread(new Runnable() {
                     @Override
@@ -141,6 +140,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
                 });
             }
         });
+
 
 
         mGyroControl = new GyroControl(this);
