@@ -1,13 +1,11 @@
 package net.kdt.pojavlaunch;
 
-
 import static net.kdt.pojavlaunch.Tools.dialogForceClose;
 import static net.kdt.pojavlaunch.prefs.LauncherPreferences.PREF_ENABLE_GYRO;
 import static net.kdt.pojavlaunch.prefs.LauncherPreferences.PREF_SUSTAINED_PERFORMANCE;
 import static net.kdt.pojavlaunch.prefs.LauncherPreferences.PREF_USE_ALTERNATE_SURFACE;
 import static net.kdt.pojavlaunch.prefs.LauncherPreferences.PREF_VIRTUAL_MOUSE_START;
 import static org.lwjgl.glfw.CallbackBridge.sendKeyPress;
-
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -115,43 +113,16 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         MCOptionUtils.load(instance.getGameDirectory().getAbsolutePath());
 
         Intent gameServiceIntent = new Intent(this, GameService.class);
-        // Start the service a bit early
         ContextCompat.startForegroundService(this, gameServiceIntent);
         initLayout(R.layout.activity_basemain);
         CallbackBridge.addGrabListener(touchpad);
         CallbackBridge.addGrabListener(minecraftGLView);
 
-        CallbackBridge.addGrabListener(new org.lwjgl.glfw.GrabListener() {
-            public void onGrabStateChange(boolean isGrabbing) {
-                MainActivity.this.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (!isGrabbing) {
-                            if (MainActivity.this.touchCharInput != null) {
-                                MainActivity.this.touchCharInput.switchKeyboardState();
-                            }
-                        } else {
-                            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) MainActivity.this.getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
-                            if (imm != null && MainActivity.this.getCurrentFocus() != null) {
-                                imm.hideSoftInputFromWindow(MainActivity.this.getCurrentFocus().getWindowToken(), 0);
-                            }
-                        }
-                    }
-                });
-            }
-        });
-
-        
-
-
-
         mGyroControl = new GyroControl(this);
 
-        // Enabling this on TextureView results in a broken white result
         if(PREF_USE_ALTERNATE_SURFACE) getWindow().setBackgroundDrawable(null);
         else getWindow().setBackgroundDrawable(new ColorDrawable(Color.BLACK));
 
-        // Set the sustained performance mode for available APIs
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N)
             getWindow().setSustainedPerformanceMode(PREF_SUSTAINED_PERFORMANCE);
 
@@ -169,15 +140,11 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
             }
         };
 
-        // Recompute the gui scale when options are changed
         MCOptionUtils.MCOptionListener optionListener = MCOptionUtils::getMcScale;
         MCOptionUtils.addMCOptionListener(optionListener);
         mControlLayout.setModifiable(false);
 
-        // Set the activity for the executor. Must do this here, or else Tools.showErrorRemote() may not
-        // execute the correct method
         ContextExecutor.setActivity(this);
-        //Now, attach to the service. The game will only start when this happens, to make sure that we know the right state.
         bindService(gameServiceIntent, this, 0);
     }
 
@@ -194,7 +161,6 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
             if(!latestLogFile.exists() && !latestLogFile.createNewFile())
                 throw new IOException("Failed to create a new log file");
             Logger.begin(latestLogFile.getAbsolutePath());
-            // FIXME: is it safe for multi thread?
             GLOBAL_CLIPBOARD = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
             touchCharInput.setCharacterSender(new LwjglCharSender());
 
@@ -203,7 +169,6 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
 
             setTitle("Minecraft " + version);
 
-            // Menu
             gameActionArrayAdapter = new ArrayAdapter<>(this,
                     android.R.layout.simple_list_item_1, getResources().getStringArray(R.array.menu_ingame));
             gameActionClickListener = (parent, view, position, id) -> {
@@ -223,7 +188,6 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
             final String finalVersion = version;
             minecraftGLView.setSurfaceReadyListener(() -> {
                 try {
-                    // Setup virtual mouse right before launching
                     if (PREF_VIRTUAL_MOUSE_START) {
                         touchpad.post(() -> touchpad.switchState());
                     }
@@ -240,7 +204,6 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
 
     private void loadControls() {
         try {
-            // Load keys
             mControlLayout.loadLayout(instance.getLaunchControls());
         } catch(IOException e) {
             try {
@@ -258,14 +221,12 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
 
     @Override
     public void onAttachedToWindow() {
-        // Post to get the correct display dimensions after layout.
         mControlLayout.post(()->{
             Tools.getDisplayMetrics(this);
             loadControls();
         });
     }
 
-    /** Boilerplate binding */
     private void bindValues(){
         mControlLayout = findViewById(R.id.main_control_layout);
         minecraftGLView = findViewById(R.id.main_game_render_view);
@@ -278,11 +239,27 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         mHotbarView = findViewById(R.id.hotbar_view);
     }
 
+    public static void setGrabStateCustom(boolean isGrabbing) {
+        Tools.runOnUiThread(() -> {
+            if (!isGrabbing) {
+                if (touchCharInput != null) {
+                    touchCharInput.switchKeyboardState();
+                }
+            } else {
+                android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) touchpad.getContext().getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (imm != null && touchCharInput != null) {
+                    imm.hideSoftInputFromWindow(touchCharInput.getWindowToken(), 0);
+                }
+            }
+        });
+    }
+
     @Override
     public void onResume() {
         super.onResume();
         if(PREF_ENABLE_GYRO) mGyroControl.enable();
         CallbackBridge.nativeSetWindowAttrib(LwjglGlfwKeycode.GLFW_HOVERED, 1);
+        setGrabStateCustom(CallbackBridge.isGrabbing());
     }
 
     @Override
@@ -323,13 +300,9 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         super.onConfigurationChanged(newConfig);
 
         if(mGyroControl != null) mGyroControl.updateOrientation();
-        // Layout resize is practically guaranteed on a configuration change, and `onConfigurationChanged`
-        // does not implicitly start a layout. So, request a layout and expect the screen dimensions to be valid after the]
-        // post.
         if(mControlLayout == null) return;
         mControlLayout.requestLayout();
         mControlLayout.post(()->{
-            // Child of mControlLayout, so refreshing size here is correct
             minecraftGLView.refreshSize();
             mControlLayout.refreshControlButtonPositions();
         });
@@ -338,7 +311,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
     @Override
     protected void onPostResume() {
         super.onPostResume();
-        if(minecraftGLView != null)  // Useful when backing out of the app
+        if(minecraftGLView != null)
             Tools.MAIN_HANDLER.postDelayed(() -> minecraftGLView.refreshSize(), 500);
     }
 
@@ -347,9 +320,6 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         super.onActivityResult(requestCode, resultCode, data);
 
         if (requestCode == 1 && resultCode == Activity.RESULT_OK) {
-            // Reload PREF_DEFAULTCTRL_PATH
-            // If the storage root got unmounted/unreadable we won't be able to load the file anyway,
-            // and MissingStorageActivity will be started.
             if(!Tools.checkStorageRoot(this)) return;
             LauncherPreferences.loadPreferences(getApplicationContext());
             try {
@@ -372,7 +342,6 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         Tools.printLauncherInfo(versionId, instance.getLaunchArgs());
         JREUtils.redirectAndPrintJRELog();
         GameRunner.launchMinecraft(this, minecraftAccount, instance, versionId, renderer);
-        //Note that we actually stall in the above function, even if the game crashes. But let's be safe.
         Tools.runOnUiThread(()-> mServiceBinder.isActive = false);
     }
 
@@ -441,7 +410,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         boolean handleEvent;
         if(!(handleEvent = minecraftGLView.processKeyEvent(event))) {
             if (event.getKeyCode() == KeyEvent.KEYCODE_BACK && !touchCharInput.isEnabled()) {
-                if(event.getAction() != KeyEvent.ACTION_UP) return true; // We eat it anyway
+                if(event.getAction() != KeyEvent.ACTION_UP) return true;
                 sendKeyPress(LwjglGlfwKeycode.GLFW_KEY_ESCAPE);
                 return true;
             }
@@ -455,7 +424,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
 
     @Keep
     public static void openLink(String link) {
-        Context ctx = touchpad.getContext(); // no more better way to obtain a context statically
+        Context ctx = touchpad.getContext();
         ((Activity)ctx).runOnUiThread(() -> {
             try {
                 if(link.startsWith("file:")) {
@@ -474,107 +443,7 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         });
     }
 
-    @SuppressWarnings("unused") //TODO: actually use it
     public static void openPath(String path) {
-        Context ctx = touchpad.getContext(); // no more better way to obtain a context statically
-        ((Activity)ctx).runOnUiThread(() -> {
-            try {
-                Tools.openPath(ctx, new File(path), false);
-            } catch (Throwable th) {
-                Tools.showError(ctx, th);
+        Context ctx = touchpad.getContext();
+    }
             }
-        });
-    }
-
-    @Keep
-    public static void querySystemClipboard() {
-        Tools.runOnUiThread(()->{
-            ClipData clipData = GLOBAL_CLIPBOARD.getPrimaryClip();
-            if(clipData == null) {
-                AWTInputBridge.nativeClipboardReceived(null, null);
-                return;
-            }
-            ClipData.Item firstClipItem = clipData.getItemAt(0);
-            //TODO: coerce to HTML if the clip item is styled
-            CharSequence clipItemText = firstClipItem.getText();
-            if(clipItemText == null) {
-                AWTInputBridge.nativeClipboardReceived(null, null);
-                return;
-            }
-            AWTInputBridge.nativeClipboardReceived(clipItemText.toString(), "plain");
-        });
-    }
-
-    @Keep
-    public static void putClipboardData(String data, String mimeType) {
-        Tools.runOnUiThread(()-> {
-            ClipData clipData = null;
-            switch(mimeType) {
-                case "text/plain":
-                    clipData = ClipData.newPlainText("AWT Paste", data);
-                    break;
-                case "text/html":
-                    clipData = ClipData.newHtmlText("AWT Paste", data, data);
-            }
-            if(clipData != null) GLOBAL_CLIPBOARD.setPrimaryClip(clipData);
-        });
-    }
-
-    @Override
-    public void onClickedMenu() {
-        drawerLayout.openDrawer(navDrawer);
-        navDrawer.requestLayout();
-    }
-
-    @Override
-    public void exitEditor() {
-        try {
-            mControlLayout.loadLayout((CustomControls)null);
-            mControlLayout.setModifiable(false);
-            System.gc();
-            mControlLayout.loadLayout(instance.getLaunchControls());
-            mDrawerPullButton.setVisibility(mControlLayout.hasMenuButton() ? View.GONE : View.VISIBLE);
-        } catch (Exception e) {
-            Tools.showError(this,e);
-        }
-
-        navDrawer.setAdapter(gameActionArrayAdapter);
-        navDrawer.setOnItemClickListener(gameActionClickListener);
-        isInEditor = false;
-    }
-
-    @Override
-    public void onServiceConnected(ComponentName name, IBinder service) {
-        GameService.LocalBinder localBinder = (GameService.LocalBinder) service;
-        mServiceBinder = localBinder;
-        minecraftGLView.start(localBinder.isActive, touchpad);
-        localBinder.isActive = true;
-    }
-
-    @Override
-    public void onServiceDisconnected(ComponentName name) {
-
-    }
-
-    /*
-     * Android 14 (or some devices, at least) seems to dispatch the the captured mouse events as trackball events
-     * due to a bug(?) somewhere(????)
-     */
-    @RequiresApi(api = Build.VERSION_CODES.O)
-    private boolean checkCaptureDispatchConditions(MotionEvent event) {
-        int eventSource = event.getSource();
-        // On my device, the mouse sends events as a relative mouse device.
-        // Not comparing with == here because apparently `eventSource` is a mask that can
-        // sometimes indicate multiple sources, like in the case of InputDevice.SOURCE_TOUCHPAD
-        // (which is *also* an InputDevice.SOURCE_MOUSE when controlling a cursor)
-        return (eventSource & InputDevice.SOURCE_MOUSE_RELATIVE) != 0 ||
-                (eventSource & InputDevice.SOURCE_MOUSE) != 0;
-    }
-
-    @Override
-    public boolean dispatchTrackballEvent(MotionEvent ev) {
-        if(Tools.isAndroid8OrHigher() && checkCaptureDispatchConditions(ev))
-            return minecraftGLView.dispatchCapturedPointerEvent(ev);
-        else return super.dispatchTrackballEvent(ev);
-    }
-}
