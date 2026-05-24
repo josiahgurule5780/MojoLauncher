@@ -8,6 +8,7 @@ import static net.kdt.pojavlaunch.prefs.LauncherPreferences.PREF_USE_ALTERNATE_S
 import static net.kdt.pojavlaunch.prefs.LauncherPreferences.PREF_VIRTUAL_MOUSE_START;
 import static org.lwjgl.glfw.CallbackBridge.sendKeyPress;
 
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.ClipData;
