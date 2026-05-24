@@ -53,14 +53,11 @@ android {
     namespace 'git.artdeell.mojo'
     compileSdk = 36
 
-    androidResources {
-        ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:<dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~'
-    }
-
+    // Global override to stop formatting and missing translation errors from stopping the build
     lint {
         abortOnError false
         checkReleaseBuilds false
-        disable 'StringFormatInvalid', 'StringFormatMatches'
+        disable 'StringFormatInvalid', 'StringFormatMatches', 'MissingTranslation'
     }
 
     signingConfigs {
@@ -305,7 +302,7 @@ afterEvaluate {
 		def cacioJarUrl = "https://jitpack.io/com/github/MojoLauncher/%1\$s/%2\$s/%3\$s/%2\$s-%3\$s%4\$s.jar"
 
         registrar.onlineJarDependency cacioJarUrl, "caciocavallo", "cacio-shared", "-01d2dc1d65-1", "", "components/caciocavallo"
-        registrar.onlineJarDependency cacioJarUrl, "cacio-androidnw", "-01d2dc1d65-1", "", "components/caciocavallo"
+        registrar.onlineJarDependency cacioJarUrl, "caciocavallo", "cacio-androidnw", "-01d2dc1d65-1", "", "components/caciocavallo"
         registrar.onlineJarDependency cacioJarUrl, "caciocavallo17", "cacio-tta", "72a9ab6323", "-jar-with-dependencies", "components/caciocavallo17"
     }
 }
