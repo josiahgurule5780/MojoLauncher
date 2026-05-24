@@ -121,25 +121,27 @@ public class MainActivity extends BaseActivity implements ControlButtonMenuListe
         CallbackBridge.addGrabListener(touchpad);
         CallbackBridge.addGrabListener(minecraftGLView);
 
-                        CallbackBridge.addGrabListener(new org.lwjgl.glfw.GrabListener() {
-            public void onGrabStateChange(final boolean isGrabbing) {
-                runOnUiThread(new Runnable() {
+        CallbackBridge.addGrabListener(new org.lwjgl.glfw.GrabListener() {
+            public void onGrabStateChange(boolean isGrabbing) {
+                MainActivity.this.runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         if (!isGrabbing) {
-                            if (touchCharInput != null) {
-                                touchCharInput.switchKeyboardState();
+                            if (MainActivity.this.touchCharInput != null) {
+                                MainActivity.this.touchCharInput.switchKeyboardState();
                             }
                         } else {
-                            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
-                            if (imm != null && getCurrentFocus() != null) {
-                                imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+                            android.view.inputmethod.InputMethodManager imm = (android.view.inputmethod.InputMethodManager) MainActivity.this.getSystemService(android.content.Context.INPUT_METHOD_SERVICE);
+                            if (imm != null && MainActivity.this.getCurrentFocus() != null) {
+                                imm.hideSoftInputFromWindow(MainActivity.this.getCurrentFocus().getWindowToken(), 0);
                             }
                         }
                     }
                 });
             }
         });
+
+        
 
 
 
